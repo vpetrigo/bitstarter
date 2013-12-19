@@ -3,7 +3,7 @@ var app = express();
 var path = require('path');
 var fs = require('fs')
 
-app.set('views', path.join(__dirname, 'views');
+app.set('views', path.join(__dirname, 'views'));
 app.use(express.logger());
 
 app.get('/', function(request, response) {
