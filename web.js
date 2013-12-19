@@ -1,9 +1,15 @@
 var express = require('express');
 var app = express();
+var path = require('path');
+var fs = require('fs')
+
+app.set('views', path.join(__dirname, 'views');
 app.use(express.logger());
 
 app.get('/', function(request, response) {
-  response.send('Privet Vovka!');
+    var buf = fs.readFileSync('views' + 'index.html');
+    var string = buf.toString('utf-8', 0, buf.lenght);
+    response.send(string);
 });
 
 var port = process.env.PORT || 5000;
