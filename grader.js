@@ -24,8 +24,10 @@ References:
 var fs = require('fs');
 var program = require('commander');
 var cheerio = require('cheerio');
-var HTMLFILE_DEFAULT = "index.html";
+var restler = require('restler');
+var HTMLFILE_DEFAULT = "views/index.html";
 var CHECKSFILE_DEFAULT = "checks.json";
+var LINK_DEFAULT = "http://www.google.com";
 
 var assertFileExists = function(infile) {
     var instr = infile.toString();
@@ -40,12 +42,19 @@ var cheerioHtmlFile = function(htmlfile) {
     return cheerio.load(fs.readFileSync(htmlfile));
 };
 
+var cheerioLink = function(linkdata) {
+    return cheerio.load(linkdata);
+};
+
 var loadChecks = function(checksfile) {
     return JSON.parse(fs.readFileSync(checksfile));
 };
 
-var checkHtmlFile = function(htmlfile, checksfile) {
-    $ = cheerioHtmlFile(htmlfile);
+var printResult = function(result) {
+    console.log(JSON.stringify(result, null, 4));
+};
+
+var tagFinder = function(checksfile){
     var checks = loadChecks(checksfile).sort();
     var out = {};
     for(var ii in checks) {
@@ -53,6 +62,34 @@ var checkHtmlFile = function(htmlfile, checksfile) {
         out[checks[ii]] = present;
     }
     return out;
+};
+
+var checkLink = function(link, checksfile) {
+    var res = restler.get(link).on('complete', function(result) {
+	if (result instanceof Error) { 
+	    console.log('% is not responded', link);
+	    process.exit(1);
+	};
+	$ = cheerioLink(result);
+	var out = tagFinder(checksfile);
+	printResult(out);
+    });
+};
+
+var checkHtmlFile = function(htmlfile, checksfile) {
+    $ = cheerioHtmlFile(htmlfile);
+    var out = tagFinder(checksfile);
+    printResult(out);
+};
+
+var linkProcessor = function(args) {
+    args.forEach(function(value, index, array) {
+	if (value === '--file' || value === '-f') { 
+	    checkJson = checkHtmlFile(program.file, program.checks);
+	} else  if (value === '--url' || value === '-u') {
+	    checkLink(program.url, program.checks);
+	}
+    });
 };
 
 var clone = function(fn) {
@@ -63,12 +100,13 @@ var clone = function(fn) {
 
 if(require.main == module) {
     program
-        .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
-        .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
-        .parse(process.argv);
-    var checkJson = checkHtmlFile(program.file, program.checks);
-    var outJson = JSON.stringify(checkJson, null, 4);
-    console.log(outJson);
+	.option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
+	.option('-u, --url <html_link>', 'Link to html file in web')
+	.option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
+	.parse(process.argv);
+    linkProcessor(process.argv);
+
 } else {
     exports.checkHtmlFile = checkHtmlFile;
+    exports.checkLink = checkLink;
 }
